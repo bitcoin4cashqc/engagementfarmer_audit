@@ -1,46 +1,84 @@
-Good Points:
-OpenZeppelin Basic Contracts: The use of OpenZeppelin’s ERC20, AccessControl, and ReentrancyGuard is solid for ensuring security, modularity, and preventing reentrancy attacks.
-Access Control System: Roles like PHASE_ADMIN_ROLE, TOKEN_MINTER_ROLE, and TOKEN_BURNER_ROLE provide well-defined access, making the contract modular and easily governable.
+# EFarm Contract Overview
 
-********************************************
-Areas to Improve:
-********************************************
+## Good Points:
 
-Struct Usage for User Giveaways: (Commited)
+- **OpenZeppelin Basic Contracts**: 
+  - The use of OpenZeppelin’s `ERC20`, `AccessControl`, and `ReentrancyGuard` ensures security, modularity, and prevents reentrancy attacks.
 
-Current: Each user's giveaway is managed via a struct (UserPhaseData) that stores both tokenAmount and claimed status.
-Improvement: Instead of using a struct, you can simply maintain an internal balance for each user. This reduces the complexity and gas costs involved in storing and updating multiple values. The backend can increase the balance directly, and the user decreases it when claiming rewards. This simplifies the gas-expensive process of claiming and reduces storage costs.
-Example: public userInternal mapping(address => uint256) then toClaim = uint256 userInternal[userWallet] ) could be used to track each user's internal balance.
----------------------------------------------
+- **Access Control System**:
+  - Roles like `PHASE_ADMIN_ROLE`, `TOKEN_MINTER_ROLE`, and `TOKEN_BURNER_ROLE` provide well-defined access, making the contract modular and easily governable.
 
-Mass Distributions via Backend:
+---
 
-Current: The backend updates token amounts for each user, but users still have to call a separate claimRewards function, incurring additional gas.
-Improvement: The backend can directly distribute tokens to users without them needing to claim. Instead of updating a user's internal balance and then having them claim, the backend could transfer the tokens directly, saving gas by eliminating the extra claimRewards call.
-This, however, shifts more gas costs to the backend, so the trade-off needs to be considered based on your use case. If you plan having non user crypto, it might be easier to send them tokens without them buying crypto and interacting with a smart contract (just need to install metamask lets say). They could be then more incentived since they received something without spending and with less efforts (creating a wallet still needed but better than also needing to buy crypto)
----------------------------------------------
+## Areas to Improve:
 
-Storing Phase Tokens in Contract: (Commited)
+### 1. Struct Usage for User Giveaways (Committed)
 
-Current: Tokens to be distributed in each phase are stored with the contract’s owner address, which requires a transfer from the owner to users upon claiming.
-Improvement: Store the tokens in the contract itself, making the token distribution process more gas-efficient and straightforward. This way, when tokens are awarded, they come directly from the contract rather than needing approval or transfer from the owner.
-Also much more secure since its not an Externally Owned Address (EOA).
----------------------------------------------
+- **Current**: Each user's giveaway is managed via a struct (`UserPhaseData`) that stores both `tokenAmount` and `claimed` status.
+  
+- **Improvement**: 
+  - Instead of using a struct, maintain an internal balance for each user. This reduces complexity and gas costs involved in storing and updating multiple values. 
+  - The backend can increase the balance directly, and the user decreases it when claiming rewards.
+  - Example: 
+    ```solidity
+    mapping(address => uint256) public userInternal; 
+    uint256 toClaim = userInternal[userWallet];
+    ```
+    This tracks each user's internal balance.
 
-User Data Struct Optimization: (Commited)
+---
 
-Current: The UserPhaseData struct stores tokenAmount and claimed status. Both are stored separately for each phase.
-Improvement: Track only the token amount and eliminate the claimed status if it's no longer necessary under the direct distribution model. If you want to show on your app all the time backend gave tokens to the user, just use an event in the smart contract or even store in a local database each time the backend call the contract to give token. Can store lets say with the tweet data, detected address in it and still display to the user in the app without the need of web3.
----------------------------------------------
+### 2. Mass Distributions via Backend
 
-Redundant Functions:
+- **Current**: The backend updates token amounts for each user, but users still have to call a separate `claimRewards` function, incurring additional gas.
 
-Functions like getTokenAmountsByAddress return arrays of data. While useful, consider whether these functions are needed in their current form, as fetching such large datasets on-chain can be gas-intensive (also deploying it).
-You can also call any public variables or mappings from a contract without a function (example : userInternal[phase][userWallet] = uint256) and even query all events (lets say claims) user made if you decide to use events.
+- **Improvement**: 
+  - The backend can directly distribute tokens to users without them needing to claim. Instead of updating a user's internal balance and then having them claim, the backend could transfer the tokens directly, saving gas by eliminating the extra `claimRewards` call.
+  - This shifts more gas costs to the backend, but simplifies the user experience, particularly for non-crypto-savvy users.
+  - If users don't have to buy crypto, they could be more incentivized to participate, as they would receive tokens without needing to spend or interact with a smart contract (other than installing a wallet like MetaMask).
 
-********************************************
-Short Explanation:
-By eliminating structs where unnecessary and optimizing token distribution, you can significantly reduce gas costs. Using internal balances for users and distributing tokens directly during batch updates, along with storing phase tokens within the contract, will simplify the architecture and lower the overall transaction fees. Removing the need for users to claim rewards and optimizing the phase and user data tracking will lead to more streamlined operations.
-********************************************
+---
 
-My conclusion is mostly fixing the owner() EOA holding the to-be-distributed tokens, using mapping instead struct for phase and user phase data and 
+### 3. Storing Phase Tokens in Contract (Committed)
+
+- **Current**: Tokens to be distributed in each phase are stored with the contract’s `owner()` address, requiring transfers from the owner to users upon claiming.
+
+- **Improvement**: 
+  - Store the tokens within the contract itself, making the token distribution process more gas-efficient and straightforward.
+  - This eliminates the need for owner approval or transfers, and increases security since the tokens are no longer held by an Externally Owned Address (EOA).
+
+---
+
+### 4. User Data Struct Optimization (Committed)
+
+- **Current**: The `UserPhaseData` struct stores `tokenAmount` and `claimed` status, both stored separately for each phase.
+
+- **Improvement**: 
+  - Track only the token amount and eliminate the `claimed` status under the direct distribution model. 
+  - If you need to display data about when tokens were given, you can use an event or store the data locally.
+  - Events can track when the backend gives tokens, and you can store additional details like tweet data in a local database. This allows you to display the data in the app without requiring Web3 interaction.
+  
+---
+
+### 5. Redundant Functions
+
+- **Current**: Functions like `getTokenAmountsByAddress` return arrays of data, which can be gas-intensive to both deploy and call on-chain.
+
+- **Improvement**: 
+  - Consider removing these functions. You can call public variables or mappings directly from a contract without needing a function (e.g., `userInternal[phase][userWallet] = uint256`). 
+  - Additionally, you can query all events (such as claims) users have made by leveraging emitted events.
+
+---
+
+## Short Explanation:
+
+By eliminating unnecessary structs and optimizing token distribution, you can significantly reduce gas costs. Using internal balances for users and distributing tokens directly during batch updates, while storing phase tokens within the contract, will simplify the architecture and lower overall transaction fees. Removing the need for users to claim rewards and optimizing phase and user data tracking leads to more streamlined operations.
+
+---
+
+## Conclusion:
+
+The major improvements focus on:
+- Removing reliance on `owner()` as an Externally Owned Address (EOA) for holding the to-be-distributed tokens.
+- Using mappings instead of structs for phase and user phase data.
+- Implementing more efficient storage and distribution mechanisms to optimize the contract for lower gas usage and better scalability.
