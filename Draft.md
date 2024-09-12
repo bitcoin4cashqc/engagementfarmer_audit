@@ -37,9 +37,6 @@ Redundant Functions:
 
 Functions like getTokenAmountsByAddress return arrays of data. While useful, consider whether these functions are needed in their current form, as fetching such large datasets on-chain can be gas-intensive (also deploying it).
 You can also call any public variables or mappings from a contract without a function (example : userInternal[phase][userWallet] = uint256) and even query all events (lets say claims) user made if you decide to use events.
----------------------------------------------
-
-Use phaseLimit if = 0 mean its closed, can also be used as validPhase trigger
 
 ********************************************
 Short Explanation:
