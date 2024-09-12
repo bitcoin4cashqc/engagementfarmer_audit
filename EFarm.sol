@@ -7,8 +7,8 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
-    uint256 public constant MAX_SUPPLY = 1_000_000_000_000e18; // 1 trillion tokens, assuming 18 decimals
-    uint256 public constant INITIAL_SUPPLY = 111_111_110_000e18; // 11.1111% of 1 trillion
+    uint256 public constant MAX_SUPPLY = 1_000_000_000_000e18; // 1 trillion tokens
+    uint256 public constant INITIAL_SUPPLY = 111_111_110_000e18; // 11.1111% of total supply
 
     uint8 public constant MAX_PHASE = 8;
 
@@ -25,12 +25,8 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
 
     bool public isFrozen;
 
-    struct UserPhaseData {
-        uint256 tokenAmount;
-        bool claimed;
-    }
-
-    mapping(address => mapping(uint8 => UserPhaseData)) public userPhases;
+    // Replacing the UserPhaseData struct with an internal balance
+    mapping(address => uint256) public userBalances; // Tracks user internal balances for rewards
 
     constructor(address initialOwner) ERC20("EFarm", "FARM") Ownable(initialOwner) {
         _mint(initialOwner, INITIAL_SUPPLY);
@@ -83,23 +79,21 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
     }
 
     function updateTokenAmounts(address[] memory users, uint256[] memory tokenAmounts)
-        external
-        onlyRole(PHASE_ADMIN_ROLE)
-        notFrozen
+    external
+    onlyRole(PHASE_ADMIN_ROLE)
+    notFrozen
     {
         require(users.length == tokenAmounts.length, "Users and tokenAmounts length mismatch");
         require(!phaseClosed[currentPhase], "Phase already closed");
 
-        uint256 phaseTotal = awarded;
+        uint256 phaseTotal = awarded;  // Total amount of tokens distributed in this phase
         for (uint256 i = 0; i < users.length; i++) {
-            UserPhaseData storage data = userPhases[users[i]][currentPhase];
-            phaseTotal -= data.tokenAmount;
-            data.tokenAmount = tokenAmounts[i];
-            phaseTotal += tokenAmounts[i];
+            userBalances[users[i]] = tokenAmounts[i];  // Directly update the user's balance
+            phaseTotal += tokenAmounts[i];  // Add the new token amount to the phase total
         }
 
         require(phaseTotal <= phaseLimit[currentPhase], "Phase limit exceeded");
-        awarded += phaseTotal;
+        awarded = phaseTotal;  // Update the awarded total
     }
 
     function closeCurrentPhase() external onlyRole(PHASE_ADMIN_ROLE) notFrozen {
@@ -109,17 +103,13 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
         awarded = 0;
     }
 
-    function claimRewards(uint8 phase) external validPhase(phase) notFrozen nonReentrant {
-        require(phaseClosed[phase], "Phase has not closed");
-        UserPhaseData storage data = userPhases[msg.sender][phase];
-        require(data.tokenAmount > 0, "no tokens to claim");
-        require(!data.claimed, "rewards already claimed for this phase");
+    function claimRewards() external notFrozen nonReentrant {
+        uint256 amount = userBalances[msg.sender];
+        require(amount > 0, "No tokens to claim");
 
-        uint256 amount = data.tokenAmount;
-        data.claimed = true;
-        data.tokenAmount = 0;
+        userBalances[msg.sender] = 0; // Reset the user's balance
 
-        require(balanceOf(owner()) >= amount, "insufficient token reserve for payout");
+        require(balanceOf(owner()) >= amount, "Insufficient token reserve for payout");
 
         _transfer(owner(), msg.sender, amount);
     }
@@ -148,13 +138,8 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
         return phaseClosed[phase];
     }
 
-    function getTokenAmountsByAddress(address user) external view returns (UserPhaseData[] memory) {
-        UserPhaseData[] memory data = new UserPhaseData[](MAX_PHASE);
-        for (uint8 i = 0; i < MAX_PHASE; i++) {
-            data[i] =
-                UserPhaseData({tokenAmount: userPhases[user][i].tokenAmount, claimed: userPhases[user][i].claimed});
-        }
-        return data;
+    function getTokenAmountsByAddress(address user) external view returns (uint256) {
+        return userBalances[user]; // Return the user's balance
     }
 
     modifier notFrozen() {
