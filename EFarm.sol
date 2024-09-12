@@ -109,9 +109,9 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
 
         userBalances[msg.sender] = 0; // Reset the user's balance
 
-        require(balanceOf(owner()) >= amount, "Insufficient token reserve for payout");
+        require(balanceOf(address(this)) >= amount, "Insufficient token reserve for payout");  // Use contract's balance
 
-        _transfer(owner(), msg.sender, amount);
+        _transfer(address(this), msg.sender, amount);  // Transfer tokens from the contract itself
     }
 
     function getCurrentPhase() external view returns (uint8) {
@@ -154,4 +154,11 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
     function unfreezeContract() external onlyRole(FREEZER_ROLE) {
         isFrozen = false;
     }
+
+    function withdrawTokens(uint256 amount) external onlyRole(PHASE_ADMIN_ROLE) notFrozen {
+        require(balanceOf(address(this)) >= amount, "Insufficient contract token balance");
+        
+        _transfer(address(this), msg.sender, amount);  // Transfer tokens from contract to phase owner
+    }
+
 }
