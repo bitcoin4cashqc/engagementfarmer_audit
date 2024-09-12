@@ -24,6 +24,8 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
     uint256 private awarded;
 
     bool public isFrozen;
+    
+    event TokensDistributed(address indexed user, uint256 amount, uint8 inPhase, uint256 giveDate);
 
     // Replacing the UserPhaseData struct with an internal balance
     mapping(address => uint256) public userBalances; // Tracks user internal balances for rewards
@@ -87,9 +89,11 @@ contract EFarm is ERC20, Ownable, AccessControl, ReentrancyGuard {
         require(!phaseClosed[currentPhase], "Phase already closed");
 
         uint256 phaseTotal = awarded;  // Total amount of tokens distributed in this phase
+        uint256 giveawayTime = block.timestamp;
         for (uint256 i = 0; i < users.length; i++) {
             userBalances[users[i]] = tokenAmounts[i];  // Directly update the user's balance
             phaseTotal += tokenAmounts[i];  // Add the new token amount to the phase total
+            emit TokensDistributed(users[i], tokenAmounts[i], currentPhase, giveawayTime);  // Emit event for each user
         }
 
         require(phaseTotal <= phaseLimit[currentPhase], "Phase limit exceeded");

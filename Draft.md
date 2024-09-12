@@ -6,7 +6,7 @@ Access Control System: Roles like PHASE_ADMIN_ROLE, TOKEN_MINTER_ROLE, and TOKEN
 Areas to Improve:
 ********************************************
 
-Struct Usage for User Giveaways:
+Struct Usage for User Giveaways: (Commited)
 
 Current: Each user's giveaway is managed via a struct (UserPhaseData) that stores both tokenAmount and claimed status.
 Improvement: Instead of using a struct, you can simply maintain an internal balance for each user. This reduces the complexity and gas costs involved in storing and updating multiple values. The backend can increase the balance directly, and the user decreases it when claiming rewards. This simplifies the gas-expensive process of claiming and reduces storage costs.
@@ -20,14 +20,14 @@ Improvement: The backend can directly distribute tokens to users without them ne
 This, however, shifts more gas costs to the backend, so the trade-off needs to be considered based on your use case. If you plan having non user crypto, it might be easier to send them tokens without them buying crypto and interacting with a smart contract (just need to install metamask lets say). They could be then more incentived since they received something without spending and with less efforts (creating a wallet still needed but better than also needing to buy crypto)
 ---------------------------------------------
 
-Storing Phase Tokens in Contract:
+Storing Phase Tokens in Contract: (Commited)
 
 Current: Tokens to be distributed in each phase are stored with the contract’s owner address, which requires a transfer from the owner to users upon claiming.
 Improvement: Store the tokens in the contract itself, making the token distribution process more gas-efficient and straightforward. This way, when tokens are awarded, they come directly from the contract rather than needing approval or transfer from the owner.
 Also much more secure since its not an Externally Owned Address (EOA).
 ---------------------------------------------
 
-User Data Struct Optimization:
+User Data Struct Optimization: (Commited)
 
 Current: The UserPhaseData struct stores tokenAmount and claimed status. Both are stored separately for each phase.
 Improvement: Track only the token amount and eliminate the claimed status if it's no longer necessary under the direct distribution model. If you want to show on your app all the time backend gave tokens to the user, just use an event in the smart contract or even store in a local database each time the backend call the contract to give token. Can store lets say with the tweet data, detected address in it and still display to the user in the app without the need of web3.
